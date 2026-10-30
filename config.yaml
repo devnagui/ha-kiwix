@@ -1,6 +1,6 @@
 name: "Kiwix"
 description: "Serve an offline ZIM library with Kiwix"
-version: "2.1.0"
+version: "2.1.1"
 slug: "naguimar_kiwix"
 arch:
   - aarch64
@@ -33,7 +33,6 @@ schema:
   log_level: "list(debug|info|warning|error)"
 ingress: true
 ingress_port: 8111
-ingress_entry: "/"
 ingress_stream: true
 panel_icon: mdi:book-open-variant
 panel_title: "Kiwix"

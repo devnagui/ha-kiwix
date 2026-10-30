@@ -15,7 +15,7 @@ test('Home Assistant metadata exposes only the hardened native integration', asy
     assert.match(config, /^  8111\/tcp: 8111$/m);
     assert.match(config, /^ingress: true$/m);
     assert.match(config, /^ingress_port: 8111$/m);
-    assert.match(config, /^ingress_entry: "\/"$/m);
+    assert.doesNotMatch(config, /^ingress_entry:/m);
     assert.match(config, /^ingress_stream: true$/m);
     assert.match(config, /^protected: true$/m);
     assert.match(config, /^panel_admin: false$/m);
