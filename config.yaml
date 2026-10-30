@@ -1,6 +1,6 @@
 name: "Naguimar Kiwix"
 description: "Serve an isolated USB-backed ZIM library on Naguimar"
-version: "2.0.3"
+version: "2.0.4"
 slug: "naguimar_kiwix"
 arch:
   - aarch64
@@ -22,6 +22,7 @@ ports:
   8111/tcp: 8111
 ports_description:
   8111/tcp: "Nginx reverse proxy (Kiwix + Management)"
+webui: "http://[HOST]:[PORT:8111]/wiki/"
 map:
   - config:rw
   - ssl:ro
@@ -41,6 +42,7 @@ schema:
   enable_management: "bool"
 ingress: true
 ingress_port: 8111
+ingress_entry: "wiki/"
 # IMPORTANT: ingress_port is static and must match the default 'port' value (8111)
 # Ingress only works with the default port. If you change 'port' in options,
 # use direct network access instead of ingress (http://homeassistant-ip:PORT)
