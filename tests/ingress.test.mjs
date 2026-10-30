@@ -48,6 +48,11 @@ test('all library assets stay inside ingress and load with the real Referer', as
     assert.ok(assets.some((path) => path.includes('.css')), 'Library has no stylesheet');
     assert.ok(assets.some((path) => path.includes('.js')), 'Library has no script');
     assert.ok(assets.some((path) => path.includes('.svg')), 'Library has no SVG icon');
+    const cacheableAssets = assets.filter((path) => path.includes('cacheid='));
+    assert.ok(cacheableAssets.length > 0, 'Library has no cache-tagged assets');
+    for (const asset of cacheableAssets) {
+        assert.match(asset, /[?&]ha_kiwix=206(?:&|$)/, `${asset} lacks the cache bypass`);
+    }
 
     for (const asset of assets) {
         const resolved = new URL(asset, browserPage);
