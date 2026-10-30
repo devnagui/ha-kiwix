@@ -1,84 +1,33 @@
-# Home Assistant Ingress Solution
+# Home Assistant ingress routing
 
-## The Problem
+Kiwix emits root-relative URLs. Home Assistant ingress adds a session prefix in
+the browser and strips it before forwarding requests to the add-on. Nginx keeps
+these two views consistent without a custom Home Assistant panel.
 
-Kiwix generates HTML with absolute paths like `/skin/kiwix.css`. When accessed via Home Assistant ingress at `https://domain.com/api/hassio_ingress/<token>/wiki/`, the browser interprets these absolute paths as `https://domain.com/skin/kiwix.css` (site root), which returns 404.
+## Route model
 
-## Why JavaScript Approach Failed
+- The native ingress entry and direct `/` both serve the landing page.
+- `/wiki/` proxies Kiwix on container loopback port 8080.
+- `/manage/` and `/api/` proxy management on loopback port 8081.
+- Port 8111 is the only nginx, ingress, and direct-access container port.
 
-Previous attempts used client-side JavaScript to rewrite paths, but:
-- Resources are requested BEFORE JavaScript executes
-- The HTML parser starts fetching CSS/JS immediately upon encountering tags
-- Interceptors installed after page load are too late
-- `sub_filter` with placeholders + JS was hacky and unreliable
+Nginx derives the public ingress prefix from `X-Ingress-Path` or the incoming
+URI. Text responses have root-relative `href`, `src`, `action`, root metadata,
+and redirects rewritten under the ingress `/wiki` base. Binary catalogue
+illustrations bypass response filtering. Home Assistant-forwarded asset,
+catalogue, content, search, suggestion, no-JavaScript, viewer, management, and
+upload routes are proxied directly. Direct requests retain their `/wiki` and
+`/manage` bases.
 
-## The Clean Solution: nginx + Lua
+## Regression check
 
-### What Changed (v1.4.0)
+Against a running container, use Node.js 20 or newer:
 
-1. **Added nginx-mod-http-lua**: Enables server-side Lua scripting in nginx
-2. **Dynamic HTML Rewriting**: HTML is modified BEFORE reaching the browser
-3. **Removed all JavaScript hacks**: No more client-side manipulation
-
-### How It Works
-
-```nginx
-body_filter_by_lua_block {
-    local ingress_prefix = ngx.var.ingress_prefix  -- e.g., "/api/hassio_ingress/TOKEN"
-    local content_type = ngx.header.content_type or ""
-    
-    if string.match(content_type, "text/html") then
-        local chunk = ngx.arg[1]
-        if chunk then
-            -- Rewrite: href="/skin/..." -> href="/api/hassio_ingress/TOKEN/skin/..."
-            chunk = string.gsub(chunk, 'href="(/[^"]*)"', 'href="' .. ingress_prefix .. '%1"')
-            chunk = string.gsub(chunk, 'src="(/[^"]*)"', 'src="' .. ingress_prefix .. '%1"')
-            ngx.arg[1] = chunk
-        end
-    end
-}
+```text
+node --test tests/ingress.test.mjs
 ```
 
-### Benefits
-
-✅ **Server-side**: HTML modified before browser sees it
-✅ **Variable support**: Can use dynamic ingress tokens  
-✅ **Clean**: No client-side hacks or workarounds
-✅ **Maintainable**: Standard nginx + Lua approach
-✅ **Fast**: Single-pass modification at proxy layer
-✅ **Reliable**: Works for all resources, not just XHR/fetch
-
-### Implementation Details
-
-**Building Lua Modules from Source**:
-- nginx-mod-http-lua is not available in Home Assistant base images
-- Solution: Compile modules during Docker build
-- Downloads ngx_devel_kit and lua-nginx-module from GitHub
-- Builds as dynamic modules matching container's nginx version
-- Installed to `/usr/lib/nginx/modules/`
-- Build dependencies cleaned up after compilation
-
-**Trade-offs**:
-- Slightly longer build time (~2-3 minutes for compilation)
-- Adds ~5MB to image size for LuaJIT runtime
-- Small CPU overhead for Lua pattern matching (negligible)
-- **Benefit**: Clean, deterministic solution with no conditional code
-
-## Testing
-
-1. Rebuild the add-on (version 1.5.0+)
-2. Access via ingress: Click add-on in Home Assistant sidebar
-3. Open DevTools Network tab
-4. Verify assets load from `/api/hassio_ingress/<token>/skin/...` paths
-5. Check that Kiwix displays with proper CSS and functionality
-6. Test navigation, search, and content viewing
-7. Verify direct access (`http://IP:8111/`) also works correctly
-
-## Why This Is The Right Approach
-
-**Industry Standard**: nginx + Lua (or OpenResty) is a proven solution for dynamic reverse proxy modifications, used by major companies like Cloudflare, Kong API Gateway, and many CDN providers.
-
-**No Browser Dependency**: Works regardless of browser, JavaScript settings, or client-side errors.
-
-**Separation of Concerns**: Path rewriting is a proxy concern, not a client concern.
+Set `KIWIX_TEST_BASE_URL` when port 8111 is not on localhost. The regression
+test checks direct access, ingress asset containment, catalogue links, content
+redirects, search, suggestions, no-JavaScript mode, and the viewer.
 

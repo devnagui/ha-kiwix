@@ -7,27 +7,22 @@
 bashio::log.info "Configuring Kiwix server..."
 
 # Read configuration values
-ZIM_STORAGE_PATH=$(bashio::config 'zim_storage_path')
-LOG_LEVEL=$(bashio::config 'log_level')
+ZIM_STORAGE_PATH="$(bashio::config 'zim_storage_path')"
+LOG_LEVEL="$(bashio::config 'log_level')"
+MAX_UPLOAD_SIZE="$(bashio::config 'max_upload_size')"
+ENABLE_MANAGEMENT="$(bashio::config 'enable_management')"
 
-# Create ZIM storage directory if it doesn't exist
-if [[ ! -d "${ZIM_STORAGE_PATH}" ]]; then
-    bashio::log.info "Creating ZIM storage directory: ${ZIM_STORAGE_PATH}"
-    mkdir -p "${ZIM_STORAGE_PATH}"
-fi
-
-# Removable filesystems may not support Unix ownership. The services run as root,
-# so only ensure the directory itself is writable without traversing every ZIM.
-chown kiwix:kiwix "${ZIM_STORAGE_PATH}" 2>/dev/null || true
-chmod g+w "${ZIM_STORAGE_PATH}" 2>/dev/null || true
+bashio::log.level "${LOG_LEVEL}"
 
 # Log configuration summary
 bashio::log.info "Configuration summary:"
 bashio::log.info "  ZIM Storage Path: ${ZIM_STORAGE_PATH}"
+bashio::log.info "  Maximum Upload Size: ${MAX_UPLOAD_SIZE} MB"
+bashio::log.info "  Management Enabled: ${ENABLE_MANAGEMENT}"
 bashio::log.info "  Log Level: ${LOG_LEVEL}"
 
 # Count existing ZIM files
-ZIM_COUNT=$(find "${ZIM_STORAGE_PATH}" -name "*.zim" -type f 2>/dev/null | wc -l)
+ZIM_COUNT=$(find "${ZIM_STORAGE_PATH}" -maxdepth 1 -name "*.zim" -type f 2>/dev/null | wc -l)
 if (( ZIM_COUNT > 0 )); then
     bashio::log.info "Found ${ZIM_COUNT} existing ZIM file(s) in storage directory"
 else

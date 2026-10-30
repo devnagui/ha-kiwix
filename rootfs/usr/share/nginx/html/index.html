@@ -125,7 +125,19 @@
         const manageFrame = document.getElementById('manageFrame');
         
         wikiFrame.src = wikiSrc;
-        manageFrame.src = manageSrc;
+        fetch((basePath ? basePath : '') + '/management-status')
+            .then((response) => {
+                if (response.ok) {
+                    manageFrame.src = manageSrc;
+                    return;
+                }
+                document.getElementById('manageTab').remove();
+                manageFrame.remove();
+            })
+            .catch(() => {
+                document.getElementById('manageTab').remove();
+                manageFrame.remove();
+            });
         
         console.log('[Landing Page] Wiki iframe src attribute:', wikiFrame.src);
         console.log('[Landing Page] Manage iframe src attribute:', manageFrame.src);
@@ -247,4 +259,3 @@
     </script>
 </body>
 </html>
-

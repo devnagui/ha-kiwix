@@ -1,6 +1,6 @@
-name: "Naguimar Kiwix"
-description: "Serve an isolated USB-backed ZIM library on Naguimar"
-version: "2.0.9"
+name: "Kiwix"
+description: "Serve an offline ZIM library with Kiwix"
+version: "2.1.0"
 slug: "naguimar_kiwix"
 arch:
   - aarch64
@@ -11,40 +11,30 @@ arch:
 init: false
 startup: application
 boot: manual
-hassio_api: true
-hassio_role: default
+protected: true
 host_network: false
 privileged: []
-# Port mapping: Exposes container ports to host
-# Format: container_port/tcp: host_port
-# Only nginx port is exposed - it handles both Kiwix (/wiki/) and Management (/manage/)
 ports:
   8111/tcp: 8111
 ports_description:
-  8111/tcp: "Nginx reverse proxy (Kiwix + Management)"
-webui: "http://[HOST]:[PORT:8111]/wiki/"
+  8111/tcp: "Kiwix web interface"
+webui: "http://[HOST]:[PORT:8111]/"
 map:
-  - config:rw
-  - ssl:ro
-  - data:rw
   - media:rw
 options:
-  port: 8111
-  zim_storage_path: "/media/torrent_disk/project-nomad/kiwix-test"
-  log_level: "info"
+  zim_storage_path: "/media/torrent_disk/project-nomad/storage/zim"
   max_upload_size: 10000
   enable_management: true
+  log_level: "info"
 schema:
-  port: "port"
   zim_storage_path: "str"
-  log_level: "list(debug|info|warning|error)"
   max_upload_size: "int(1,)"
   enable_management: "bool"
+  log_level: "list(debug|info|warning|error)"
 ingress: true
 ingress_port: 8111
-ingress_entry: "wiki/"
-# IMPORTANT: ingress_port is static and must match the default 'port' value (8111)
-# Ingress only works with the default port. If you change 'port' in options,
-# use direct network access instead of ingress (http://homeassistant-ip:PORT)
+ingress_entry: "/"
+ingress_stream: true
 panel_icon: mdi:book-open-variant
 panel_title: "Kiwix"
+panel_admin: false

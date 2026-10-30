@@ -34,6 +34,15 @@ async function get(path, headers = {}) {
     return response;
 }
 
+test('native ingress entry serves the landing page', async () => {
+    const landing = await get('/', ingressHeaders);
+    const html = await landing.text();
+    assert.match(html, /id="wikiFrame"/);
+    assert.match(html, /id="manageFrame"/);
+    assert.match(html, /\/wiki\//);
+    assert.match(html, /\/manage\//);
+});
+
 test('direct access still serves the library and stylesheet', async () => {
     const library = await get('/wiki/');
     assert.match(library.headers.get('content-type'), /text\/html/);

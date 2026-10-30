@@ -28,10 +28,7 @@ import uvicorn
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(sys.stdout),
-        logging.StreamHandler(sys.stderr)
-    ]
+    handlers=[logging.StreamHandler(sys.stdout)]
 )
 logger = logging.getLogger(__name__)
 
@@ -905,19 +902,29 @@ def monitor_external_zim_files():
 def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(description="Kiwix Management API")
-    parser.add_argument("--port", type=int, default=8112, help="Port to listen on")
+    parser.add_argument("--port", type=int, default=8081, help="Port to listen on")
     parser.add_argument("--storage-path", type=str, required=True, help="Path to ZIM storage directory")
     parser.add_argument("--max-upload-size", type=int, default=10000, help="Maximum upload size in MB")
-    parser.add_argument("--host", type=str, default="0.0.0.0", help="Host to bind to")
+    parser.add_argument("--host", type=str, default="127.0.0.1", help="Host to bind to")
+    parser.add_argument(
+        "--log-level",
+        choices=("debug", "info", "warning", "error"),
+        default="info",
+        help="Application and server log level",
+    )
     
     args = parser.parse_args()
     
     global storage_path, max_upload_size
-    storage_path = Path(args.storage_path)
+    logging.getLogger().setLevel(args.log_level.upper())
+
+    storage_path = Path(args.storage_path).resolve()
     max_upload_size = args.max_upload_size * 1024 * 1024  # Convert MB to bytes
-    
-    # Ensure storage path exists
-    storage_path.mkdir(parents=True, exist_ok=True)
+
+    if not storage_path.is_dir():
+        parser.error(f"storage path is missing or not a directory: {storage_path}")
+    if not os.access(storage_path, os.R_OK | os.W_OK | os.X_OK):
+        parser.error(f"storage path must be readable, writable, and searchable: {storage_path}")
     
     logger.info(f"Starting Kiwix Management API on {args.host}:{args.port}")
     logger.info(f"ZIM storage path: {storage_path}")
@@ -931,7 +938,7 @@ def main():
         app,
         host=args.host,
         port=args.port,
-        log_level="info",
+        log_level=args.log_level,
         access_log=True,
     )
 

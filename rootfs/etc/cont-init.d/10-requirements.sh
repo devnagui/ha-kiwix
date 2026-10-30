@@ -6,30 +6,48 @@
 
 bashio::log.info "Checking add-on requirements..."
 
-# Check if Kiwix tools are available
-if ! command -v kiwix-serve &> /dev/null; then
-    bashio::exit.nok "kiwix-serve command not found. Kiwix tools may not be installed correctly."
+for dependency in kiwix-serve kiwix-manage nginx curl find; do
+    if ! command -v "${dependency}" >/dev/null 2>&1; then
+        bashio::exit.nok "Required dependency '${dependency}' is not installed."
+    fi
+done
+
+if [[ ! -x /opt/venv/bin/python ]]; then
+    bashio::exit.nok "Management Python runtime is missing or not executable: /opt/venv/bin/python"
 fi
 
-bashio::log.info "Kiwix tools found: $(kiwix-serve --version 2>&1 || echo 'version check failed')"
-
-# Check port configuration
-PORT=$(bashio::config 'port')
-if bashio::var.is_empty "${PORT}"; then
-    bashio::exit.nok "Port must be configured!"
+if [[ ! -r /usr/local/bin/kiwix-manager.py ]]; then
+    bashio::exit.nok "Management service is missing or unreadable: /usr/local/bin/kiwix-manager.py"
 fi
 
-# Check ZIM storage path
-ZIM_STORAGE_PATH=$(bashio::config 'zim_storage_path')
+ZIM_STORAGE_PATH="$(bashio::config 'zim_storage_path')"
 if bashio::var.is_empty "${ZIM_STORAGE_PATH}"; then
-    bashio::exit.nok "ZIM storage path must be configured!"
+    bashio::exit.nok "The 'zim_storage_path' option is required."
 fi
 
-# Check max upload size
-MAX_UPLOAD_SIZE=$(bashio::config 'max_upload_size')
+if [[ "${ZIM_STORAGE_PATH}" != /* ]]; then
+    bashio::exit.nok "ZIM storage path must be absolute: ${ZIM_STORAGE_PATH}"
+fi
+
+if [[ ! -e "${ZIM_STORAGE_PATH}" ]]; then
+    bashio::exit.nok "ZIM storage path does not exist: ${ZIM_STORAGE_PATH}. Mount or create it before starting Kiwix."
+fi
+
+if [[ ! -d "${ZIM_STORAGE_PATH}" ]]; then
+    bashio::exit.nok "ZIM storage path is not a directory: ${ZIM_STORAGE_PATH}"
+fi
+
+if [[ ! -r "${ZIM_STORAGE_PATH}" || ! -w "${ZIM_STORAGE_PATH}" || ! -x "${ZIM_STORAGE_PATH}" ]]; then
+    bashio::exit.nok "ZIM storage path must be readable, writable, and searchable: ${ZIM_STORAGE_PATH}"
+fi
+
+MAX_UPLOAD_SIZE="$(bashio::config 'max_upload_size')"
 if (( MAX_UPLOAD_SIZE < 1 )); then
-    bashio::exit.nok "Max upload size must be at least 1 MB!"
+    bashio::exit.nok "The 'max_upload_size' option must be at least 1 MB."
 fi
 
-bashio::log.info "Add-on requirements check completed successfully!"
+if ! nginx -t >/dev/null 2>&1; then
+    bashio::exit.nok "The nginx configuration is invalid. Check the add-on image and logs."
+fi
 
+bashio::log.info "Startup requirements are satisfied."

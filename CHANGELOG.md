@@ -5,6 +5,30 @@ All notable changes to this add-on will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2026-10-30
+
+### Changed
+
+- Use the exact Kiwix display name and native Home Assistant ingress landing
+  page while retaining the fixed direct Network mapping on port 8111.
+- Limit add-on options to storage, upload size, management, and log level; wire
+  each option to startup and runtime behavior.
+- Default storage to `/media/torrent_disk/project-nomad/storage/zim`.
+
+### Security
+
+- Validate runtime dependencies, storage access, and existing library XML
+  before startup without clearing or replacing existing storage.
+- Bind Kiwix and management services to container loopback behind nginx.
+- Remove unused Home Assistant API access and unused filesystem mappings.
+
+### Fixed
+
+- Let the configured management upload limit, rather than a hard-coded nginx
+  limit, govern uploads.
+- Document ownership, service binding, backups, in-place upgrades,
+  copy-verify-switch migration, rollback, ingress, and direct access.
+
 ## [2.0.9] - 2026-10-30
 
 ### Fixed

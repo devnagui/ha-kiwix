@@ -7,53 +7,55 @@
 bashio::log.info "Starting Kiwix server with nginx reverse proxy..."
 
 # Get configuration values
-PORT=$(bashio::config 'port')
-ZIM_STORAGE_PATH=$(bashio::config 'zim_storage_path')
-ENABLE_MANAGEMENT=$(bashio::config 'enable_management')
-LOG_LEVEL=$(bashio::config 'log_level')
-MAX_UPLOAD_SIZE=$(bashio::config 'max_upload_size')
+PORT=8111
+ZIM_STORAGE_PATH="$(bashio::config 'zim_storage_path')"
+ENABLE_MANAGEMENT="$(bashio::config 'enable_management')"
+LOG_LEVEL="$(bashio::config 'log_level')"
+MAX_UPLOAD_SIZE="$(bashio::config 'max_upload_size')"
 
 # Internal ports (not exposed externally)
 KIWIX_INTERNAL_PORT=8080
 MANAGEMENT_INTERNAL_PORT=8081
 
 bashio::log.info "Configuration:"
-bashio::log.info "  External Port (nginx): ${PORT}"
+bashio::log.info "  Public Port (nginx): ${PORT}"
 bashio::log.info "  Kiwix Internal Port: ${KIWIX_INTERNAL_PORT}"
 bashio::log.info "  Management Internal Port: ${MANAGEMENT_INTERNAL_PORT}"
 bashio::log.info "  ZIM Storage Path: ${ZIM_STORAGE_PATH}"
 bashio::log.info "  Management Enabled: ${ENABLE_MANAGEMENT}"
+bashio::log.info "  Maximum Upload Size: ${MAX_UPLOAD_SIZE} MB"
 bashio::log.info "  Log Level: ${LOG_LEVEL}"
 
-# Ensure ZIM storage directory exists and is writable.
-mkdir -p "${ZIM_STORAGE_PATH}"
-chown kiwix:kiwix "${ZIM_STORAGE_PATH}" 2>/dev/null || true
-chmod g+w "${ZIM_STORAGE_PATH}" 2>/dev/null || true
+if bashio::var.true "${ENABLE_MANAGEMENT}"; then
+    rm -f /tmp/kiwix-management-disabled
+else
+    : > /tmp/kiwix-management-disabled
+fi
 
 # Start management API in background if enabled
 if bashio::var.true "${ENABLE_MANAGEMENT}"; then
     bashio::log.info "Starting management API on internal port ${MANAGEMENT_INTERNAL_PORT}..."
     export ZIM_STORAGE_PATH="${ZIM_STORAGE_PATH}"
-    export MAX_UPLOAD_SIZE=${MAX_UPLOAD_SIZE}
-    # Start management API - ensure it binds to all interfaces
+    export MAX_UPLOAD_SIZE="${MAX_UPLOAD_SIZE}"
     nohup /opt/venv/bin/python /usr/local/bin/kiwix-manager.py \
-        --port ${MANAGEMENT_INTERNAL_PORT} \
-        --host 0.0.0.0 \
+        --port "${MANAGEMENT_INTERNAL_PORT}" \
+        --host 127.0.0.1 \
         --storage-path "${ZIM_STORAGE_PATH}" \
-        --max-upload-size ${MAX_UPLOAD_SIZE} \
+        --max-upload-size "${MAX_UPLOAD_SIZE}" \
+        --log-level "${LOG_LEVEL}" \
         > /proc/1/fd/1 2>/proc/1/fd/2 &
     MANAGEMENT_PID=$!
     bashio::log.info "Management API started with PID ${MANAGEMENT_PID}"
     
     # Store PID for potential cleanup
-    echo ${MANAGEMENT_PID} > /tmp/kiwix-manager.pid
+    echo "${MANAGEMENT_PID}" > /tmp/kiwix-manager.pid
     
     # Wait a moment for management API to start
     sleep 3
     
     # Check if management API is still running
-    if ! kill -0 ${MANAGEMENT_PID} 2>/dev/null; then
-        bashio::log.error "Management API failed to start!"
+    if ! kill -0 "${MANAGEMENT_PID}" 2>/dev/null; then
+        bashio::exit.nok "Management API failed to start."
     else
         # Verify it's responding
         if curl -f -s http://localhost:${MANAGEMENT_INTERNAL_PORT}/api/zim > /dev/null 2>&1; then
@@ -68,17 +70,28 @@ fi
 ZIM_COUNT=$(find "${ZIM_STORAGE_PATH}" -maxdepth 1 -name "*.zim" -type f 2>/dev/null | wc -l)
 LIBRARY_XML="${ZIM_STORAGE_PATH}/library.xml"
 
-if (( ZIM_COUNT == 0 )); then
-    bashio::log.info "No ZIM files found. Creating empty library..."
-    # Create an empty library.xml file for kiwix-serve
-    cat > "${LIBRARY_XML}" << 'EOF'
+if [[ -e "${LIBRARY_XML}" && ( ! -f "${LIBRARY_XML}" || ! -s "${LIBRARY_XML}" ) ]]; then
+    bashio::exit.nok "Existing library.xml must be a non-empty regular file; it was left unchanged."
+fi
+
+if [[ ! -e "${LIBRARY_XML}" ]]; then
+    bashio::log.info "No library.xml found. Creating a new empty library without changing existing files."
+    cat > "${LIBRARY_XML}" <<'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
 <library version="2.0" />
 EOF
-    chown kiwix:kiwix "${LIBRARY_XML}"
-    bashio::log.info "Empty library created. Add ZIM files via the management interface."
-else
+fi
+
+if ! /opt/venv/bin/python -c \
+    'import sys, xml.etree.ElementTree as ET; ET.parse(sys.argv[1])' \
+    "${LIBRARY_XML}"; then
+    bashio::exit.nok "Existing library.xml is invalid XML; it was left unchanged: ${LIBRARY_XML}"
+fi
+
+if (( ZIM_COUNT > 0 )); then
     bashio::log.info "Found ${ZIM_COUNT} ZIM file(s) in storage directory"
+else
+    bashio::log.info "No ZIM files found. Add one through management or copy one into storage."
 fi
 
 # Change to ZIM storage directory
@@ -92,23 +105,19 @@ bashio::log.info "Using --library and --monitorLibrary for automatic ZIM file de
 # Note: We can't use --urlRootLocation with a dynamic ingress token since it changes per session
 # Instead, we rely on nginx sub_filter and JavaScript to rewrite paths
 
-if [[ -f "${LIBRARY_XML}" ]]; then
-    nohup kiwix-serve --library --monitorLibrary --address=all --port ${KIWIX_INTERNAL_PORT} "${LIBRARY_XML}" \
-        > /proc/1/fd/1 2>/proc/1/fd/2 &
-else
-    nohup kiwix-serve --library --monitorLibrary --address=all --port ${KIWIX_INTERNAL_PORT} . \
-        > /proc/1/fd/1 2>/proc/1/fd/2 &
-fi
+nohup kiwix-serve --library --monitorLibrary --address=127.0.0.1 \
+    --port "${KIWIX_INTERNAL_PORT}" "${LIBRARY_XML}" \
+    > /proc/1/fd/1 2>/proc/1/fd/2 &
 KIWIX_PID=$!
-echo ${KIWIX_PID} > /tmp/kiwix-serve.pid
+echo "${KIWIX_PID}" > /tmp/kiwix-serve.pid
 bashio::log.info "Kiwix server started with PID ${KIWIX_PID}"
 
 # Wait a moment for Kiwix to start
 sleep 3
 
 # Verify Kiwix is running
-if ! kill -0 ${KIWIX_PID} 2>/dev/null; then
-    bashio::log.error "Kiwix server failed to start!"
+if ! kill -0 "${KIWIX_PID}" 2>/dev/null; then
+    bashio::exit.nok "Kiwix server failed to start."
 else
     if curl -f -s http://localhost:${KIWIX_INTERNAL_PORT} > /dev/null 2>&1; then
         bashio::log.info "Kiwix server is responding on port ${KIWIX_INTERNAL_PORT}"

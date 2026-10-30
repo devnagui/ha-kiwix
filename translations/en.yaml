@@ -1,19 +1,9 @@
 configuration:
-  port:
-    name: Kiwix Server Port
-    description: >-
-      The port where the Kiwix server will serve ZIM files.
-      Default is 8111. Accessible via Home Assistant ingress and direct network access.
-  management_port:
-    name: Management API Port
-    description: >-
-      The port for the management web interface.
-      Default is 8112. Use this to download, upload, and manage ZIM files.
   zim_storage_path:
     name: ZIM Storage Path
     description: >-
-      The directory where ZIM files are stored.
-      Default is "/data/zim". Files in this directory are automatically detected by Kiwix.
+      Existing readable and writable directory containing the ZIM library.
+      Default is "/media/torrent_disk/project-nomad/storage/zim".
   log_level:
     name: Log Level
     description: >-
@@ -23,10 +13,9 @@ configuration:
     name: Maximum Upload Size (MB)
     description: >-
       Maximum size for uploaded ZIM files in megabytes.
-      Default is 10000 (10GB). Large ZIM files like full Wikipedia can be 100GB+.
+      Default is 10000 (10 GB).
   enable_management:
     name: Enable Management Interface
     description: >-
       Enable the web-based management interface for downloading, uploading, and managing ZIM files.
-      Set to false to disable the management API and UI.
-
+      Set to false to run only the read-only Kiwix library.
