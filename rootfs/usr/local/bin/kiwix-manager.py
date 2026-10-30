@@ -844,7 +844,7 @@ async def get_zim_file_info(filename: str):
     return JSONResponse(content=info)
 
 
-def scan_and_add_existing_zim_files():
+def scan_and_add_existing_zim_files(quiet: bool = False):
     """Scan for existing ZIM files and add them to library.xml if not already present."""
     library_xml = storage_path / "library.xml"
     
@@ -855,7 +855,8 @@ def scan_and_add_existing_zim_files():
         logger.info("No ZIM files found to scan")
         return
     
-    logger.info(f"Scanning {len(zim_files)} ZIM file(s) and adding to library if needed")
+    if not quiet:
+        logger.info(f"Scanning {len(zim_files)} ZIM file(s) and adding to library if needed")
     
     # Check if library.xml exists and read it to see what's already there
     existing_files = set()
@@ -887,8 +888,18 @@ def scan_and_add_existing_zim_files():
     
     if added_count > 0:
         logger.info(f"Added {added_count} existing ZIM file(s) to library.xml")
-    else:
+    elif not quiet:
         logger.info("All ZIM files are already in library.xml")
+
+
+def monitor_external_zim_files():
+    """Add ZIM files written by external downloaders to the Kiwix library."""
+    while True:
+        time.sleep(60)
+        try:
+            scan_and_add_existing_zim_files(quiet=True)
+        except Exception:
+            logger.exception("Failed to scan for externally downloaded ZIM files")
 
 
 def main():
@@ -914,6 +925,7 @@ def main():
     
     # Scan for existing ZIM files and add them to library
     scan_and_add_existing_zim_files()
+    threading.Thread(target=monitor_external_zim_files, daemon=True).start()
     
     uvicorn.run(
         app,
@@ -926,4 +938,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
