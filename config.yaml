@@ -1,6 +1,6 @@
 name: "Naguimar Kiwix"
 description: "Serve an isolated USB-backed ZIM library on Naguimar"
-version: "2.0.4"
+version: "2.0.5"
 slug: "naguimar_kiwix"
 arch:
   - aarch64

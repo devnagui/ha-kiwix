@@ -12,23 +12,32 @@ A Kiwix server for serving offline Wikipedia and other ZIM files with a built-in
 
 ## Access Methods
 
-**Direct Network Access** (Recommended):
+**Direct Network Access**:
 - Access via `http://YOUR_HA_IP:8111/`
 - **Full Kiwix functionality** - all features work correctly
 - Management interface, ZIM browsing, search all work perfectly
 - Bookmark this URL for easy access
 
-**Home Assistant Ingress** (Limited):
+**Home Assistant Ingress**:
 - Available via HA sidebar
-- Management interface works
-- Kiwix content has limited functionality (assets may not load)
-- **Limitation**: Kiwix uses absolute paths incompatible with ingress proxy
+- Opens the Kiwix library through Home Assistant's authenticated connection
+- Stylesheets, JavaScript, and icons remain inside the ingress path
+- Management is also available through ingress
 
-### Why Direct Access?
+### Ingress Routing
 
-Kiwix generates HTML with absolute paths (e.g., `/skin/kiwix.css`). When accessed through Home Assistant's ingress proxy at `/api/hassio_ingress/<token>/wiki/`, these paths resolve to the wrong location. The proper fix requires server-side HTML rewriting with nginx Lua modules, which have proven too complex to build with proper binary compatibility in the HA environment.
+Kiwix generates absolute asset paths such as `/skin/kiwix.css`. Nginx rewrites
+these links using Home Assistant's ingress prefix. Home Assistant removes that
+prefix before forwarding asset requests to the app, so those requests must be
+proxied directly rather than redirected based on the browser's Referer.
+No Lua modules are required.
 
-**Solution**: Use direct network access for the best experience.
+### Regression Check
+
+With Node.js 20 or newer, run `node --test` against a running app. The tests use
+`http://127.0.0.1:8111` by default; set `KIWIX_TEST_BASE_URL` to test another
+address. They cover direct access and all library assets with both real ingress
+headers, including relative URLs, and reject asset redirects.
 
 ## Configuration
 
@@ -344,4 +353,3 @@ The management API provides REST endpoints:
 ## License
 
 MIT License - see LICENSE file for details.
-

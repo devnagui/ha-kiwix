@@ -5,6 +5,15 @@ All notable changes to this add-on will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.5] - 2026-10-30
+
+### Fixed
+
+- Serve stylesheets, scripts, and icons through Home Assistant ingress without
+  redirecting requests with an ingress Referer to an HTTP LAN URL.
+- Add regression coverage for ingress forwarding with both the ingress header
+  and the browser's Referer, including relative asset links.
+
 ## [2.0.4] - 2026-10-30
 
 ### Fixed
