@@ -10,12 +10,16 @@ const ingressHeaders = {
     Referer: browserPage.href,
 };
 
-async function request(path, headers = {}) {
-    const response = await fetch(new URL(path, server), {
+async function fetchManual(path, headers = {}) {
+    return fetch(new URL(path, server), {
         headers,
         redirect: 'manual',
         signal: AbortSignal.timeout(5000),
     });
+}
+
+async function request(path, headers = {}) {
+    const response = await fetchManual(path, headers);
     assert.equal(response.headers.get('location'), null, `${path} unexpectedly redirects`);
     return response;
 }
@@ -60,7 +64,7 @@ test('all library assets stay inside ingress and load with the real Referer', as
     const cacheableAssets = assets.filter((path) => path.includes('cacheid='));
     assert.ok(cacheableAssets.length > 0, 'Library has no cache-tagged assets');
     for (const asset of cacheableAssets) {
-        assert.match(asset, /[?&]ha_kiwix=208(?:&|$)/, `${asset} lacks the cache bypass`);
+        assert.match(asset, /[?&]ha_kiwix=209(?:&|$)/, `${asset} lacks the cache bypass`);
     }
 
     for (const asset of assets) {
@@ -83,6 +87,15 @@ test('all library assets stay inside ingress and load with the real Referer', as
             assert.ok(links.length > 0, 'Catalogue contains no links');
             for (const link of links.filter((value) => value.startsWith('/'))) {
                 assert.ok(link.startsWith(`${ingressRoot}/`), `${link} escapes /wiki`);
+            }
+            const contentLink = links.find((value) => value.startsWith(`${ingressRoot}/content/`));
+            if (contentLink) {
+                const forwarded = contentLink.slice(prefix.length);
+                const redirect = await fetchManual(forwarded, ingressHeaders);
+                assert.equal(redirect.status, 302, `${forwarded} does not redirect to its main page`);
+                const location = redirect.headers.get('location');
+                assert.ok(location?.startsWith(`${ingressRoot}/content/`), `${location} escapes /wiki`);
+                assert.doesNotMatch(location, /^https?:\/\//, `${location} is an absolute redirect`);
             }
         }
     }

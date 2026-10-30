@@ -34,7 +34,8 @@ Asset URLs also include an add-on version marker so clients bypass permanent
 redirects cached before this fix. Kiwix's runtime root metadata is rewritten so
 catalogue, viewer, content, search, suggestion, and filter requests all remain
 under the `/wiki` ingress proxy base. Catalogue XML links and upstream redirects
-are rewritten as well. No Lua modules are required.
+are rewritten as relative ingress URLs so nginx cannot emit blocked HTTP LAN
+redirects. No Lua modules are required.
 
 ### Regression Check
 
