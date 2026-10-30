@@ -1,7 +1,7 @@
-name: "Kiwix Server"
-description: "Serve offline Wikipedia and other ZIM files with management interface"
-version: "2.0.0"
-slug: "kiwix"
+name: "Naguimar Kiwix"
+description: "Serve an isolated USB-backed ZIM library on Naguimar"
+version: "2.0.1"
+slug: "naguimar_kiwix"
 arch:
   - aarch64
   - amd64
@@ -26,9 +26,10 @@ map:
   - config:rw
   - ssl:ro
   - data:rw
+  - media:rw
 options:
   port: 8111
-  zim_storage_path: "/data/zim"
+  zim_storage_path: "/media/torrent_disk/project-nomad/kiwix-test"
   log_level: "info"
   max_upload_size: 10000
   enable_management: true
@@ -45,4 +46,3 @@ ingress_port: 8111
 # use direct network access instead of ingress (http://homeassistant-ip:PORT)
 panel_icon: mdi:book-open-variant
 panel_title: "Kiwix"
-

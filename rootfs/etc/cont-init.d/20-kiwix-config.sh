@@ -16,10 +16,10 @@ if [[ ! -d "${ZIM_STORAGE_PATH}" ]]; then
     mkdir -p "${ZIM_STORAGE_PATH}"
 fi
 
-# Set proper permissions
-bashio::log.info "Setting permissions on ZIM storage directory..."
-chown -R kiwix:kiwix "${ZIM_STORAGE_PATH}"
-chmod -R g+w "${ZIM_STORAGE_PATH}"
+# Removable filesystems may not support Unix ownership. The services run as root,
+# so only ensure the directory itself is writable without traversing every ZIM.
+chown kiwix:kiwix "${ZIM_STORAGE_PATH}" 2>/dev/null || true
+chmod g+w "${ZIM_STORAGE_PATH}" 2>/dev/null || true
 
 # Log configuration summary
 bashio::log.info "Configuration summary:"
@@ -35,4 +35,3 @@ else
 fi
 
 bashio::log.info "Kiwix configuration completed!"
-

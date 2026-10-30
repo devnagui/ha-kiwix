@@ -25,10 +25,10 @@ bashio::log.info "  ZIM Storage Path: ${ZIM_STORAGE_PATH}"
 bashio::log.info "  Management Enabled: ${ENABLE_MANAGEMENT}"
 bashio::log.info "  Log Level: ${LOG_LEVEL}"
 
-# Ensure ZIM storage directory exists and has correct permissions
+# Ensure ZIM storage directory exists and is writable.
 mkdir -p "${ZIM_STORAGE_PATH}"
-chown -R kiwix:kiwix "${ZIM_STORAGE_PATH}"
-chmod -R g+w "${ZIM_STORAGE_PATH}"
+chown kiwix:kiwix "${ZIM_STORAGE_PATH}" 2>/dev/null || true
+chmod g+w "${ZIM_STORAGE_PATH}" 2>/dev/null || true
 
 # Start management API in background if enabled
 if bashio::var.true "${ENABLE_MANAGEMENT}"; then
@@ -93,10 +93,10 @@ bashio::log.info "Using --library and --monitorLibrary for automatic ZIM file de
 # Instead, we rely on nginx sub_filter and JavaScript to rewrite paths
 
 if [[ -f "${LIBRARY_XML}" ]]; then
-    nohup kiwix-serve --library --monitorLibrary --address 0.0.0.0 --port ${KIWIX_INTERNAL_PORT} "${LIBRARY_XML}" \
+    nohup kiwix-serve --library --monitorLibrary --address=all --port ${KIWIX_INTERNAL_PORT} "${LIBRARY_XML}" \
         > /proc/1/fd/1 2>/proc/1/fd/2 &
 else
-    nohup kiwix-serve --library --monitorLibrary --address 0.0.0.0 --port ${KIWIX_INTERNAL_PORT} . \
+    nohup kiwix-serve --library --monitorLibrary --address=all --port ${KIWIX_INTERNAL_PORT} . \
         > /proc/1/fd/1 2>/proc/1/fd/2 &
 fi
 KIWIX_PID=$!
