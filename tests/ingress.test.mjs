@@ -27,6 +27,7 @@ async function get(path, headers = {}) {
 test('direct access still serves the library and stylesheet', async () => {
     const library = await get('/wiki/');
     assert.match(library.headers.get('content-type'), /text\/html/);
+    assert.match(await library.clone().text(), /<link type="root" href="">/);
     const stylesheet = await get('/skin/index.css');
     assert.match(stylesheet.headers.get('content-type'), /text\/css/);
     assert.ok((await stylesheet.text()).length > 0);
@@ -41,6 +42,8 @@ test('forwarded stylesheet with an ingress Referer does not redirect to HTTP', a
 test('all library assets stay inside ingress and load with the real Referer', async () => {
     const library = await get('/wiki/', ingressHeaders);
     const html = await library.text();
+    const root = html.match(/<link type="root" href="([^"]*)">/)?.[1];
+    assert.equal(root, prefix, 'Kiwix runtime root escapes ingress');
     const references = [...html.matchAll(/(?:src|href)\s*=\s*["']([^"']+)["']/g)]
         .map((match) => match[1])
         .filter((path) => path.includes('/skin/') && !/^https?:\/\//.test(path));
@@ -62,5 +65,11 @@ test('all library assets stay inside ingress and load with the real Referer', as
         const forwarded = `${resolved.pathname}${resolved.search}`.slice(prefix.length);
         const response = await get(forwarded, ingressHeaders);
         assert.ok((await response.arrayBuffer()).byteLength > 0, `${asset} is empty`);
+    }
+
+    for (const endpoint of ['entries?count=-1', 'languages', 'categories']) {
+        const resolved = new URL(`${root}/catalog/v2/${endpoint}`, browserPage);
+        const forwarded = `${resolved.pathname}${resolved.search}`.slice(prefix.length);
+        await get(forwarded, ingressHeaders);
     }
 });

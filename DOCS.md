@@ -31,7 +31,8 @@ these links using Home Assistant's ingress prefix. Home Assistant removes that
 prefix before forwarding asset requests to the app, so those requests must be
 proxied directly rather than redirected based on the browser's Referer.
 Asset URLs also include an add-on version marker so clients bypass permanent
-redirects cached before this fix. No Lua modules are required.
+redirects cached before this fix. Kiwix's runtime root metadata is rewritten so
+catalogue and filter requests also remain in ingress. No Lua modules are required.
 
 ### Regression Check
 
